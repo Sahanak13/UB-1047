@@ -1,0 +1,17 @@
+[
+  {
+    "id": "CERT-D445FC8E",
+    "name": "Ai certification",
+    "issuedTo": "Sahana",
+    "issuedBy": "BEC",
+    "fileName": "Blue and Yellow Minimalist Employee of the Month Certificate.png",
+    "filePath": "uploads/1762961200993-335617561.png",
+    "fileHash": "325832127a3a05d0b520fcd1c78b0a273f456fa4178f2fbc61e9ddd446ee7de7",
+    "uploadDate": "2025-11-12T15:26:41.017Z",
+    "status": "verified",
+    "qrCodePath": "uploads/qr-CERT-D445FC8E.png",
+    "mergedPath": "uploads/merged-CERT-D445FC8E.png",
+    "qrMergeMethod": "merged",
+    "mergedHash": "3ede0403fbe2e242da0723fd76e87940cdb2a6206fed252466dd435bd0b0973e"
+  }
+]

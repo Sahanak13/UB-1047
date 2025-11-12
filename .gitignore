@@ -1,0 +1,21 @@
+# Node dependencies
+node_modules/
+
+# macOS
+.DS_Store
+
+# Log files
+npm-debug.log*
+
+# Runtime files
+.env
+
+# Uploaded files
+uploads/
+
+# lockfiles
+package-lock.json
+
+# Editor directories and files
+.vscode/
+*.log
