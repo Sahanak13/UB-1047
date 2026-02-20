@@ -1,5 +1,5 @@
 // server.js
-// Complete Certificate Server v4.2.1 - JSON Only (No MySQL Error)
+// Complete Certificate Server v4.2.1 - JSON Only - Render Ready
 
 const express = require("express");
 const multer = require("multer");
@@ -10,29 +10,48 @@ const path = require("path");
 const sharp = require("sharp");
 
 // =============================
+// Config
+// =============================
+const PORT = process.env.PORT || 3000;
+
+// ✅ RENDER FIX: Use PUBLIC_URL env var for QR codes and verification links.
+// Set this in Render dashboard → Environment → PUBLIC_URL = https://your-app.onrender.com
+const BASE_URL = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
+
+// ✅ RENDER FIX: Use /opt/render/project/data for persistent disk storage.
+// In Render dashboard → your service → Disks → Mount Path: /opt/render/project/data
+// If no disk is attached, falls back to local (data won't persist across restarts).
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
+const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
+const CERTIFICATES_FILE = path.join(DATA_DIR, "certificates.json");
+
+// Ensure directories exist on startup
+[DATA_DIR, UPLOADS_DIR].forEach((dir) => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
+
+// =============================
 // JSON File Operations
 // =============================
-
 function loadCertificates() {
-  try {
-    const data = fs.readFileSync("certificates.json", "utf8");
-    return JSON.parse(data);
-  } catch (error) {
-    return [];
+  if (!fs.existsSync(CERTIFICATES_FILE)) {
+    fs.writeFileSync(CERTIFICATES_FILE, JSON.stringify([], null, 2));
   }
+  const data = fs.readFileSync(CERTIFICATES_FILE, "utf8");
+  return JSON.parse(data);
 }
 
 function saveCertificates(certificates) {
-  fs.writeFileSync("certificates.json", JSON.stringify(certificates, null, 2));
+  fs.writeFileSync(CERTIFICATES_FILE, JSON.stringify(certificates, null, 2));
 }
 
 // =============================
 // Express App Setup
 // =============================
 const app = express();
-const PORT = 3000;
 
-// Middleware
 app.use(express.json());
 app.use(express.static("public"));
 app.use(express.urlencoded({ extended: true }));
@@ -42,11 +61,7 @@ app.use(express.urlencoded({ extended: true }));
 // =============================
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = "uploads";
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
+    cb(null, UPLOADS_DIR);
   },
   filename: (req, file, cb) => {
     const uniqueName =
@@ -98,14 +113,12 @@ function generatePartialHash(data) {
   };
 }
 
-// Find matching certificate (original, merged, or edited duplicate)
 async function findMatchingCertificate(fileBuffer) {
   const certificates = loadCertificates();
   const uploadedHash = generateHash(fileBuffer);
 
   console.log("Searching for hash:", uploadedHash.substring(0, 16), "...");
 
-  // Check for exact hash match (original or merged)
   for (const cert of certificates) {
     if (cert.fileHash === uploadedHash) {
       console.log("Found exact match (original):", cert.id);
@@ -119,7 +132,6 @@ async function findMatchingCertificate(fileBuffer) {
 
   console.log("No exact hash match found");
 
-  // Check for edited duplicates
   const uploadedPartialHash = generatePartialHash(fileBuffer);
   for (const cert of certificates) {
     try {
@@ -154,7 +166,6 @@ async function findMatchingCertificate(fileBuffer) {
   return { found: false };
 }
 
-// Create QR code and merge it with certificate image
 async function mergeQRWithCertificate(certificatePath, qrCodePath, certificateId) {
   try {
     const fileExtension = path.extname(certificatePath).toLowerCase();
@@ -165,10 +176,7 @@ async function mergeQRWithCertificate(certificatePath, qrCodePath, certificateId
       const certificate = sharp(certificatePath);
       const metadata = await certificate.metadata();
 
-      const qrSize = Math.min(
-        150,
-        Math.max(80, Math.floor(metadata.width * 0.1))
-      );
+      const qrSize = Math.min(150, Math.max(80, Math.floor(metadata.width * 0.1)));
 
       const qrBuffer = await sharp(qrCodePath)
         .resize(qrSize, qrSize, {
@@ -183,7 +191,7 @@ async function mergeQRWithCertificate(certificatePath, qrCodePath, certificateId
         top: metadata.height - qrSize - 20,
       };
 
-      const outputPath = `uploads/merged-${certificateId}${fileExtension}`;
+      const outputPath = path.join(UPLOADS_DIR, `merged-${certificateId}${fileExtension}`);
 
       await certificate
         .composite([
@@ -201,7 +209,7 @@ async function mergeQRWithCertificate(certificatePath, qrCodePath, certificateId
       return { success: true, method: "merged", mergedPath: outputPath };
     } else {
       console.log("PDF certificate - copying as merged");
-      const outputPath = `uploads/merged-${certificateId}.pdf`;
+      const outputPath = path.join(UPLOADS_DIR, `merged-${certificateId}.pdf`);
       fs.copyFileSync(certificatePath, outputPath);
       return { success: true, method: "separate", mergedPath: outputPath };
     }
@@ -211,16 +219,13 @@ async function mergeQRWithCertificate(certificatePath, qrCodePath, certificateId
   }
 }
 
-// Enhanced verification function
 async function performVerification(certificateId, uploadedFileBuffer = null) {
-  console.log("VERIFICATION START");
-  console.log("Certificate ID:", certificateId);
+  console.log("VERIFICATION START - Certificate ID:", certificateId);
 
   const certificates = loadCertificates();
   const certificate = certificates.find((cert) => cert.id === certificateId);
 
   if (!certificate) {
-    console.log("Certificate not found in database");
     return {
       status: "notfound",
       message: "Certificate not found in our system",
@@ -228,13 +233,10 @@ async function performVerification(certificateId, uploadedFileBuffer = null) {
     };
   }
 
-  console.log("Certificate found in database");
-
   if (uploadedFileBuffer) {
     const uploadedHash = generateHash(uploadedFileBuffer);
 
     if (uploadedHash === certificate.fileHash) {
-      console.log("Uploaded file matches original");
       return {
         status: "authentic",
         message: "Certificate is authentic and valid (original version).",
@@ -244,7 +246,6 @@ async function performVerification(certificateId, uploadedFileBuffer = null) {
     }
 
     if (certificate.mergedHash && uploadedHash === certificate.mergedHash) {
-      console.log("Uploaded file matches merged version");
       return {
         status: "authentic",
         message: "Certificate is authentic and valid (merged with QR code).",
@@ -255,7 +256,6 @@ async function performVerification(certificateId, uploadedFileBuffer = null) {
 
     const matchResult = await findMatchingCertificate(uploadedFileBuffer);
     if (matchResult.found && matchResult.type === "editedduplicate") {
-      console.log("Edited duplicate detected");
       return {
         status: "editedduplicate",
         message:
@@ -267,7 +267,6 @@ async function performVerification(certificateId, uploadedFileBuffer = null) {
       };
     }
 
-    console.log("File has been modified");
     return {
       status: "forgery",
       message: "FORGERY DETECTED - Certificate file has been modified.",
@@ -276,7 +275,6 @@ async function performVerification(certificateId, uploadedFileBuffer = null) {
     };
   }
 
-  console.log("Certificate ID verified");
   return {
     status: "authentic",
     message: "Certificate is authentic and valid.",
@@ -316,14 +314,11 @@ app.get("/", (req, res) => {
 // VERIFICATION PAGE ROUTE
 app.get("/verify/:id", async (req, res) => {
   const certificateId = req.params.id.toUpperCase();
-  console.log("VERIFICATION PAGE REQUEST");
-  console.log("Certificate ID:", certificateId);
 
   const certificates = loadCertificates();
   const certificate = certificates.find((cert) => cert.id === certificateId);
 
   if (!certificate) {
-    console.log("Certificate not found - showing 404 page");
     return res.status(404).send(`<!DOCTYPE html>
 <html>
 <head>
@@ -334,23 +329,15 @@ app.get("/verify/:id", async (req, res) => {
 <body>
   <nav class="navbar">
     <div class="container">
-      <div class="nav-brand">
-        <h2>Certificate Verification</h2>
-      </div>
-      <div class="nav-menu">
-        <a href="/" class="btn btn-outline">Home</a>
-      </div>
+      <div class="nav-brand"><h2>Certificate Verification</h2></div>
+      <div class="nav-menu"><a href="/" class="btn btn-outline">Home</a></div>
     </div>
   </nav>
   <div class="container">
     <div class="section" style="text-align: center; max-width: 600px; margin: 50px auto;">
       <h1 style="color: var(--danger);">Certificate Not Found</h1>
-      <p style="font-size: 1.2rem; margin: 1rem 0;">
-        Certificate ID <strong>${certificateId}</strong>
-      </p>
-      <p style="color: var(--text-muted);">
-        This certificate does not exist in our system or has been removed.
-      </p>
+      <p style="font-size: 1.2rem; margin: 1rem 0;">Certificate ID <strong>${certificateId}</strong></p>
+      <p style="color: var(--text-muted);">This certificate does not exist in our system or has been removed.</p>
       <div style="margin-top: 2rem;">
         <a href="/" class="btn btn-primary">Back to Home</a>
         <a href="/verifier.html" class="btn btn-secondary" style="margin-left: 1rem;">Verify Another</a>
@@ -361,7 +348,6 @@ app.get("/verify/:id", async (req, res) => {
 </html>`);
   }
 
-  console.log("Certificate found - showing verification page");
   const verification = await performVerification(certificateId);
 
   let statusClass = "success";
@@ -374,6 +360,9 @@ app.get("/verify/:id", async (req, res) => {
     statusTitle = "VERIFICATION ERROR";
   }
 
+  // ✅ RENDER FIX: Use BASE_URL (from env) instead of hardcoded localhost
+  const verifyUrl = `${BASE_URL}/verify/${certificate.id}`;
+
   res.send(`<!DOCTYPE html>
 <html>
 <head>
@@ -384,9 +373,7 @@ app.get("/verify/:id", async (req, res) => {
 <body>
   <nav class="navbar">
     <div class="container">
-      <div class="nav-brand">
-        <h2>Certificate Verification</h2>
-      </div>
+      <div class="nav-brand"><h2>Certificate Verification</h2></div>
       <div class="nav-menu">
         <a href="/" class="btn btn-outline">Home</a>
         <a href="/verifier.html" class="btn btn-secondary">Verify Another</a>
@@ -399,16 +386,12 @@ app.get("/verify/:id", async (req, res) => {
       <div style="text-align: center; margin-bottom: 2rem;">
         <h1 style="color: var(--text-primary);">${certificate.name}</h1>
         <p style="color: var(--text-muted);">Certificate Verification Results</p>
-        <p style="color: var(--text-subtle); font-size: 0.9rem;">
-          Verified on ${new Date().toLocaleString()}
-        </p>
+        <p style="color: var(--text-subtle); font-size: 0.9rem;">Verified on ${new Date().toLocaleString()}</p>
       </div>
 
       <div class="result-card ${statusClass}">
         <h4>${statusIcon} ${statusTitle}</h4>
-        <p style="font-size: 1.1rem; margin-bottom: 2rem;">
-          ${verification.message}
-        </p>
+        <p style="font-size: 1.1rem; margin-bottom: 2rem;">${verification.message}</p>
 
         <div class="certificate-details">
           <h5>Certificate Information</h5>
@@ -416,19 +399,9 @@ app.get("/verify/:id", async (req, res) => {
           <p><strong>Certificate Name</strong> <span>${certificate.name}</span></p>
           <p><strong>Issued To</strong> <span>${certificate.issuedTo || "NA"}</span></p>
           <p><strong>Issued By</strong> <span>${certificate.issuedBy || "NA"}</span></p>
-          <p><strong>Issue Date</strong> <span>${new Date(
-            certificate.uploadDate
-          ).toLocaleDateString()}</span></p>
-          <p><strong>File Hash</strong> <span style="font-family: monospace; font-size: 0.8rem;">${
-            certificate.fileHash
-              ? certificate.fileHash.substring(0, 32) + "..."
-              : "NA"
-          }</span></p>
-          ${
-            certificate.mergedPath
-              ? `<p><strong>QR Status</strong> <span style="color: var(--success);">QR Code Embedded</span></p>`
-              : ""
-          }
+          <p><strong>Issue Date</strong> <span>${new Date(certificate.uploadDate).toLocaleDateString()}</span></p>
+          <p><strong>File Hash</strong> <span style="font-family: monospace; font-size: 0.8rem;">${certificate.fileHash ? certificate.fileHash.substring(0, 32) + "..." : "NA"}</span></p>
+          ${certificate.mergedPath ? `<p><strong>QR Status</strong> <span style="color: var(--success);">QR Code Embedded</span></p>` : ""}
         </div>
 
         <div style="margin-top: 2rem; padding: 1.5rem; background: var(--bg-secondary); border-radius: 8px;">
@@ -442,24 +415,14 @@ app.get("/verify/:id", async (req, res) => {
 
       <div class="section" style="text-align: center;">
         <h3>Share This Verification</h3>
-        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
-          Anyone can verify this certificate using the link below
-        </p>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Anyone can verify this certificate using the link below</p>
         <div style="background: var(--bg-secondary); padding: 1.5rem; border-radius: 8px; margin: 1.5rem 0;">
-          <code style="word-break: break-all; color: var(--primary);">
-            ${req.protocol}://${req.get("host")}/verify/${certificate.id}
-          </code>
+          <code style="word-break: break-all; color: var(--primary);">${verifyUrl}</code>
         </div>
         <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
           <button onclick="copyToClipboard('${certificate.id}')" class="btn btn-secondary">Copy Certificate ID</button>
-          <button onclick="copyToClipboard('${req.protocol}://${req.get(
-            "host"
-          )}/verify/${certificate.id}')" class="btn btn-primary">Copy Verification Link</button>
-          ${
-            certificate.qrCodePath
-              ? `<a href="/uploads/qr-${certificate.id}.png" download="qr-${certificate.id}.png" class="btn btn-outline">Download QR Code</a>`
-              : ""
-          }
+          <button onclick="copyToClipboard('${verifyUrl}')" class="btn btn-primary">Copy Verification Link</button>
+          ${certificate.qrCodePath ? `<a href="/uploads/qr-${certificate.id}.png" download="qr-${certificate.id}.png" class="btn btn-outline">Download QR Code</a>` : ""}
         </div>
       </div>
     </div>
@@ -470,21 +433,17 @@ app.get("/verify/:id", async (req, res) => {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text)
           .then(() => alert('Copied to clipboard: ' + text))
-          .catch(err => {
-            console.error('Clipboard error:', err);
-            fallbackCopy(text);
-          });
+          .catch(() => fallbackCopy(text));
       } else {
         fallbackCopy(text);
       }
-
       function fallbackCopy(text) {
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        document.body.appendChild(textArea);
-        textArea.select();
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
         document.execCommand('copy');
-        document.body.removeChild(textArea);
+        document.body.removeChild(ta);
         alert('Copied to clipboard: ' + text);
       }
     }
@@ -503,7 +462,7 @@ app.post("/api/login", (req, res) => {
     const user = users[username];
     res.json({
       success: true,
-      username: username,
+      username,
       role: user.role,
       department: user.department || null,
       organization: user.organization || null,
@@ -511,10 +470,7 @@ app.post("/api/login", (req, res) => {
       message: "Login successful",
     });
   } else {
-    res.status(401).json({
-      success: false,
-      message: "Invalid credentials",
-    });
+    res.status(401).json({ success: false, message: "Invalid credentials" });
   }
 });
 
@@ -527,13 +483,10 @@ app.post("/api/upload", upload.single("certificate"), async (req, res) => {
 
     const { certificateName, issuedTo, issuedBy, department, uploadedBy } = req.body;
 
-    console.log("UPLOAD START");
-    console.log("File:", req.file.originalname);
-    console.log("MIME:", req.file.mimetype);
+    console.log("UPLOAD START - File:", req.file.originalname);
 
     const fileBuffer = fs.readFileSync(req.file.path);
     const fileHash = generateHash(fileBuffer);
-    console.log("Original hash:", fileHash.substring(0, 16), "...");
 
     const matchResult = await findMatchingCertificate(fileBuffer);
 
@@ -549,9 +502,7 @@ app.post("/api/upload", upload.single("certificate"), async (req, res) => {
       fs.unlinkSync(req.file.path);
       return res.status(400).json({
         error: "Edited duplicate detected",
-        message:
-          "This appears to be an edited version of " +
-          matchResult.certificate.name,
+        message: "This appears to be an edited version of " + matchResult.certificate.name,
         originalCertificate: matchResult.certificate,
       });
     }
@@ -572,31 +523,26 @@ app.post("/api/upload", upload.single("certificate"), async (req, res) => {
       lastVerifiedAt: null,
     };
 
+    // ✅ RENDER FIX: Use BASE_URL in QR data
     const qrData = JSON.stringify({
       id: certificateId,
       hash: fileHash,
-      url: `http://localhost:${PORT}/verify/${certificateId}`,
+      url: `${BASE_URL}/verify/${certificateId}`,
       name: certificateName,
       issuedTo,
       issuedBy,
       timestamp: new Date().toISOString(),
     });
 
-    console.log("Generating QR code...");
-    const qrCodePath = `uploads/qr-${certificateId}.png`;
+    const qrCodePath = path.join(UPLOADS_DIR, `qr-${certificateId}.png`);
     await QRCode.toFile(qrCodePath, qrData, {
       width: 300,
       margin: 2,
-      color: {
-        dark: "#000000",
-        light: "#FFFFFF",
-      },
+      color: { dark: "#000000", light: "#FFFFFF" },
     });
 
-    console.log("QR code generated");
     certificate.qrCodePath = qrCodePath;
 
-    console.log("Merging QR with certificate...");
     const qrMergeResult = await mergeQRWithCertificate(
       req.file.path,
       qrCodePath,
@@ -610,23 +556,16 @@ app.post("/api/upload", upload.single("certificate"), async (req, res) => {
       if (fs.existsSync(qrMergeResult.mergedPath)) {
         const mergedBuffer = fs.readFileSync(qrMergeResult.mergedPath);
         certificate.mergedHash = generateHash(mergedBuffer);
-        console.log(
-          "Merged hash:",
-          certificate.mergedHash.substring(0, 16),
-          "..."
-        );
       }
     }
 
-    // Save to JSON
     const certificates = loadCertificates();
     certificates.push(certificate);
     saveCertificates(certificates);
 
-    console.log("UPLOAD COMPLETE");
-    console.log("Certificate ID:", certificateId);
-    console.log("View URL:", `http://localhost:${PORT}/verify/${certificateId}`);
+    console.log("UPLOAD COMPLETE - Certificate ID:", certificateId);
 
+    const ext = path.extname(req.file.originalname);
     res.json({
       success: true,
       message: "Certificate uploaded successfully",
@@ -634,11 +573,7 @@ app.post("/api/upload", upload.single("certificate"), async (req, res) => {
         id: certificateId,
         name: certificateName,
         qrCode: `/uploads/qr-${certificateId}.png`,
-        merged: qrMergeResult.success
-          ? `/uploads/merged-${certificateId}${path.extname(
-              req.file.originalname
-            )}`
-          : null,
+        merged: qrMergeResult.success ? `/uploads/merged-${certificateId}${ext}` : null,
         mergeMethod: qrMergeResult.method,
         hash: fileHash,
         viewUrl: `/verify/${certificateId}`,
@@ -649,10 +584,7 @@ app.post("/api/upload", upload.single("certificate"), async (req, res) => {
     if (req.file && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
-    res.status(500).json({
-      error: "Upload failed",
-      details: error.message,
-    });
+    res.status(500).json({ error: "Upload failed", details: error.message });
   }
 });
 
@@ -672,118 +604,85 @@ app.get("/api/verify/:id", async (req, res) => {
 });
 
 // =============================
-// API Verify uploaded file (WITH "ALREADY VERIFIED" FEATURE)
+// API Verify uploaded file
 // =============================
-app.post(
-  "/api/verify-file",
-  upload.single("certificate"),
-  async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: "No file uploaded" });
-      }
+app.post("/api/verify-file", upload.single("certificate"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
-      console.log("FILE VERIFICATION START");
-      console.log("File:", req.file.originalname);
-      console.log("Size:", Math.round(req.file.size / 1024), "KB");
+    console.log("FILE VERIFICATION START - File:", req.file.originalname);
 
-      const fileBuffer = fs.readFileSync(req.file.path);
-      const matchResult = await findMatchingCertificate(fileBuffer);
+    const fileBuffer = fs.readFileSync(req.file.path);
+    const matchResult = await findMatchingCertificate(fileBuffer);
 
-      // Always remove temp upload
-      fs.unlinkSync(req.file.path);
+    fs.unlinkSync(req.file.path);
 
-      if (!matchResult.found) {
-        console.log("No matching certificate found");
-        return res.json({
-          success: false,
-          status: "notfound",
-          message: "This certificate is not found in our system.",
-        });
-      }
-
-      // Edited duplicate
-      if (matchResult.type === "editedduplicate") {
-        console.log("Edited duplicate detected");
-        return res.json({
-          success: false,
-          status: "editedduplicate",
-          message:
-            "INVALID - This appears to be an edited version of certificate " +
-            matchResult.certificate.name,
-          originalCertificate: matchResult.certificate,
-        });
-      }
-
-      // At this point, matchResult is original/merged = authentic certificate
-      const cert = matchResult.certificate;
-
-      // ✅ NEW: Check if already verified
-      if (cert.lastVerifiedAt) {
-        console.log(
-          "Certificate already verified earlier at:",
-          cert.lastVerifiedAt
-        );
-        return res.json({
-          success: true,
-          status: "alreadyverified",
-          message:
-            "This certificate was already verified on " +
-            new Date(cert.lastVerifiedAt).toLocaleString() +
-            ".",
-          certificate: cert,
-          lastVerifiedAt: cert.lastVerifiedAt,
-        });
-      }
-
-      // First time verification
-      console.log("Authentic certificate found:", cert.id);
-      const verification = await performVerification(cert.id, fileBuffer);
-
-      // ✅ Mark certificate as verified NOW
-      const nowIso = new Date().toISOString();
-      cert.lastVerifiedAt = nowIso;
-
-      // Save updated certificate back to JSON
-      const certificates = loadCertificates();
-      const certIndex = certificates.findIndex((c) => c.id === cert.id);
-      if (certIndex !== -1) {
-        certificates[certIndex] = cert;
-        saveCertificates(certificates);
-      }
-
+    if (!matchResult.found) {
       return res.json({
-        success: true,
-        status: "authentic",
-        message: verification.message,
-        certificate: cert,
-        lastVerifiedAt: nowIso,
-      });
-    } catch (error) {
-      if (req.file && fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
-      }
-      console.error("File verification error:", error);
-      res.status(500).json({
-        error: "File verification failed",
-        details: error.message,
+        success: false,
+        status: "notfound",
+        message: "This certificate is not found in our system.",
       });
     }
+
+    if (matchResult.type === "editedduplicate") {
+      return res.json({
+        success: false,
+        status: "editedduplicate",
+        message: "INVALID - This appears to be an edited version of certificate " + matchResult.certificate.name,
+        originalCertificate: matchResult.certificate,
+      });
+    }
+
+    const cert = matchResult.certificate;
+
+    if (cert.lastVerifiedAt) {
+      return res.json({
+        success: true,
+        status: "alreadyverified",
+        message: "This certificate was already verified on " + new Date(cert.lastVerifiedAt).toLocaleString() + ".",
+        certificate: cert,
+        lastVerifiedAt: cert.lastVerifiedAt,
+      });
+    }
+
+    const verification = await performVerification(cert.id, fileBuffer);
+
+    const nowIso = new Date().toISOString();
+    cert.lastVerifiedAt = nowIso;
+
+    const certificates = loadCertificates();
+    const certIndex = certificates.findIndex((c) => c.id === cert.id);
+    if (certIndex !== -1) {
+      certificates[certIndex] = cert;
+      saveCertificates(certificates);
+    }
+
+    return res.json({
+      success: true,
+      status: "authentic",
+      message: verification.message,
+      certificate: cert,
+      lastVerifiedAt: nowIso,
+    });
+  } catch (error) {
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    console.error("File verification error:", error);
+    res.status(500).json({ error: "File verification failed", details: error.message });
   }
-);
+});
 
 // =============================
 // API Verify QR code
 // =============================
 app.post("/api/verify-qr", async (req, res) => {
   try {
-    console.log("QR VERIFICATION START");
-
     let qrData;
     try {
       qrData = JSON.parse(req.body.qrData);
-    } catch (parseError) {
-      console.log("Invalid JSON format");
+    } catch {
       return res.status(400).json({
         success: false,
         status: "invalidqr",
@@ -793,7 +692,6 @@ app.post("/api/verify-qr", async (req, res) => {
 
     const certificateId = qrData.id;
     if (!certificateId) {
-      console.log("Missing certificate ID in QR");
       return res.status(400).json({
         success: false,
         status: "invalidqr",
@@ -804,7 +702,6 @@ app.post("/api/verify-qr", async (req, res) => {
     const verification = await performVerification(certificateId);
 
     if (verification.status === "notfound") {
-      console.log("Certificate not found");
       return res.json({
         success: false,
         status: "notfound",
@@ -814,17 +711,13 @@ app.post("/api/verify-qr", async (req, res) => {
 
     if (verification.certificate && qrData.hash) {
       if (qrData.hash !== verification.certificate.fileHash) {
-        console.log("QR hash mismatch");
         return res.json({
           success: false,
           status: "forgery",
-          message:
-            "FORGERY DETECTED - QR code hash does not match certificate",
+          message: "FORGERY DETECTED - QR code hash does not match certificate",
         });
       }
     }
-
-    console.log("QR verification complete:", verification.status);
 
     res.json({
       success: verification.status === "authentic",
@@ -834,11 +727,7 @@ app.post("/api/verify-qr", async (req, res) => {
     });
   } catch (error) {
     console.error("QR verification error:", error);
-    res.status(500).json({
-      success: false,
-      status: "error",
-      message: "QR verification failed: " + error.message,
-    });
+    res.status(500).json({ success: false, status: "error", message: "QR verification failed: " + error.message });
   }
 });
 
@@ -849,29 +738,17 @@ app.get("/api/certificates", async (req, res) => {
   const certificates = loadCertificates();
   const { username } = req.query;
 
-  // No username = return nothing (never expose all certs)
-  if (!username) {
-    return res.json([]);
-  }
+  if (!username) return res.json([]);
 
   const userObj = users[username];
-  if (!userObj) {
-    return res.json([]);
-  }
+  if (!userObj) return res.json([]);
 
-  // The user's authoritative department from the users object (not from cert data)
   const authDept = (userObj.department || "").trim().toLowerCase();
 
   const filtered = certificates.filter((cert) => {
-    // Priority 1: strict username match (new certs uploaded after this fix)
     if (cert.uploadedBy && cert.uploadedBy === username) return true;
-
-    // Priority 2: department field set and matches this user's department exactly
     if (cert.department && cert.department.trim().toLowerCase() === authDept) return true;
-
-    // Priority 3: issuedBy matches this user's department (legacy certs)
     if (cert.issuedBy && cert.issuedBy.trim().toLowerCase() === authDept) return true;
-
     return false;
   });
 
@@ -893,7 +770,7 @@ app.get("/api/certificates", async (req, res) => {
 });
 
 // =============================
-// Backfill department field on legacy certificates
+// Backfill department field
 // =============================
 app.post("/api/certificates/backfill-department", (req, res) => {
   try {
@@ -906,18 +783,9 @@ app.post("/api/certificates/backfill-department", (req, res) => {
     certificates.forEach((cert) => {
       const issuedByLower = (cert.issuedBy || "").trim().toLowerCase();
       const deptLower = department.trim().toLowerCase();
-      const matches = issuedByLower === deptLower;
-
-      if (matches) {
-        // Always ensure department field is set
-        if (!cert.department) {
-          cert.department = department;
-          updated++;
-        }
-        // Set uploadedBy if provided and not already set
-        if (uploadedBy && !cert.uploadedBy) {
-          cert.uploadedBy = uploadedBy;
-        }
+      if (issuedByLower === deptLower) {
+        if (!cert.department) { cert.department = department; updated++; }
+        if (uploadedBy && !cert.uploadedBy) cert.uploadedBy = uploadedBy;
       }
     });
 
@@ -928,29 +796,23 @@ app.post("/api/certificates/backfill-department", (req, res) => {
   }
 });
 
-
+// =============================
+// Download certificate
+// =============================
 app.get("/api/download/:id", async (req, res) => {
   try {
     const certificateId = req.params.id;
     const certificates = loadCertificates();
     const certificate = certificates.find((cert) => cert.id === certificateId);
 
-    if (!certificate) {
-      return res.status(404).json({ error: "Certificate not found" });
-    }
+    if (!certificate) return res.status(404).json({ error: "Certificate not found" });
 
     const downloadPath = certificate.mergedPath || certificate.filePath;
     if (!fs.existsSync(downloadPath)) {
       return res.status(404).json({ error: "Certificate file not found" });
     }
 
-    const fileName =
-      certificate.name.replace(/[^a-zA-Z0-9]/g, "_") +
-      "_" +
-      certificate.id +
-      path.extname(downloadPath);
-
-    console.log("Download:", fileName);
+    const fileName = certificate.name.replace(/[^a-zA-Z0-9]/g, "_") + "_" + certificate.id + path.extname(downloadPath);
     res.download(downloadPath, fileName);
   } catch (error) {
     console.error("Download error:", error);
@@ -964,36 +826,21 @@ app.get("/api/download/:id", async (req, res) => {
 app.delete("/api/certificates/:id", async (req, res) => {
   try {
     const certificateId = req.params.id;
-
     const certificates = loadCertificates();
-    const certificateIndex = certificates.findIndex(
-      (cert) => cert.id === certificateId
-    );
+    const certificateIndex = certificates.findIndex((cert) => cert.id === certificateId);
 
-    if (certificateIndex === -1) {
-      return res.status(404).json({ error: "Certificate not found" });
-    }
+    if (certificateIndex === -1) return res.status(404).json({ error: "Certificate not found" });
 
     const certificate = certificates[certificateIndex];
 
-    // Delete files
-    const filesToDelete = [
-      certificate.filePath,
-      certificate.qrCodePath,
-      certificate.mergedPath,
-    ].filter(Boolean);
-
-    filesToDelete.forEach((filePath) => {
-      try {
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-      } catch (error) {
-        console.error("Error deleting file", filePath, error.message);
-      }
-    });
+    [certificate.filePath, certificate.qrCodePath, certificate.mergedPath]
+      .filter(Boolean)
+      .forEach((filePath) => {
+        try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (e) { console.error("Error deleting file:", e.message); }
+      });
 
     certificates.splice(certificateIndex, 1);
     saveCertificates(certificates);
-    console.log("DELETED:", certificateId);
 
     res.json({ success: true, message: "Certificate deleted successfully" });
   } catch (error) {
@@ -1005,7 +852,7 @@ app.delete("/api/certificates/:id", async (req, res) => {
 // =============================
 // Serve uploads
 // =============================
-app.use("/uploads", express.static("uploads"));
+app.use("/uploads", express.static(UPLOADS_DIR));
 
 // =============================
 // Health check
@@ -1016,7 +863,9 @@ app.get("/api/health", async (req, res) => {
     status: "healthy",
     timestamp: new Date().toISOString(),
     certificates: certificates.length,
-    version: "4.2.1-json-only-alreadyverified",
+    version: "4.2.1-render-ready",
+    baseUrl: BASE_URL,
+    dataDir: DATA_DIR,
   });
 });
 
@@ -1024,20 +873,18 @@ app.get("/api/health", async (req, res) => {
 // Start Server
 // =============================
 app.listen(PORT, () => {
-  console.log("\n✅ Certificate Server v4.2.1 - JSON Only Mode (No MySQL)");
-  console.log("🔗 URL: http://localhost:" + PORT);
-  console.log("\n📋 STORAGE: JSON File (certificates.json)");
-  console.log("✨ NEW FEATURE: 'Already Verified' Tracking");
-  console.log("   - First verification of a file: marks lastVerifiedAt");
-  console.log("   - Uploading same file again: shows 'Already Verified' message");
+  console.log("\n✅ Certificate Server v4.2.1 - Render Ready");
+  console.log("🔗 URL:", BASE_URL);
+  console.log("📁 Data dir:", DATA_DIR);
+  console.log("📋 STORAGE: JSON File →", CERTIFICATES_FILE);
   console.log("\n📁 ACTIVE ROUTES:");
-  console.log("   ✓ GET  /verify/:id           → View certificate page");
-  console.log("   ✓ GET  /api/verify/:id       → API certificate verification");
-  console.log("   ✓ POST /api/verify-qr        → API QR code verification");
-  console.log("   ✓ POST /api/verify-file      → API file upload (with alreadyverified)");
-  console.log("   ✓ POST /api/upload           → Upload new certificate");
-  console.log("   ✓ GET  /api/certificates     → List all certificates");
-  console.log("   ✓ GET  /api/download/:id     → Download certificate");
-  console.log("   ✓ DELETE /api/certificates/:id → Delete certificate");
-  console.log("   ✓ GET  /api/health           → Server health check\n");
+  console.log("   ✓ GET  /verify/:id");
+  console.log("   ✓ GET  /api/verify/:id");
+  console.log("   ✓ POST /api/verify-qr");
+  console.log("   ✓ POST /api/verify-file");
+  console.log("   ✓ POST /api/upload");
+  console.log("   ✓ GET  /api/certificates");
+  console.log("   ✓ GET  /api/download/:id");
+  console.log("   ✓ DELETE /api/certificates/:id");
+  console.log("   ✓ GET  /api/health\n");
 });
