@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Certificate Authentication</title>
+    <title>CertShield - Government Certificate Verification</title>
     <link rel="stylesheet" href="style.css">
     <style>
         /* Split Screen Layout */
@@ -289,6 +289,154 @@
                 opacity: 0;
             }
         }
+
+        /* ── Role Tabs ── */
+        .role-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.6rem;
+            margin-bottom: 1.2rem;
+        }
+        .role-tab {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.8rem 1rem;
+            border-radius: 12px;
+            border: 1.5px solid #e2e8f0;
+            background: #f7f8fc;
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #718096;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .role-tab:hover { border-color: #667eea; color: #667eea; background: rgba(102,126,234,0.05); }
+        .role-tab.active-admin { border-color: #667eea; background: linear-gradient(135deg,rgba(102,126,234,0.15),rgba(118,75,162,0.08)); color: #553c9a; box-shadow: 0 2px 8px rgba(102,126,234,0.2); }
+        .role-tab.active-verifier { border-color: #38a169; background: linear-gradient(135deg,rgba(56,161,105,0.15),rgba(22,163,74,0.06)); color: #276749; box-shadow: 0 2px 8px rgba(56,161,105,0.2); }
+        .role-tab-icon { font-size: 1.3rem; }
+
+        /* ── Custom Select ── */
+        .select-group { margin-bottom: 1rem; }
+        .select-label {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 0.4rem;
+        }
+        .select-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            background: #f7f8fc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 0 1rem;
+            height: 52px;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+        }
+        .select-wrapper:focus-within {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.12);
+            background: #fff;
+        }
+        .select-icon { font-size: 1.1rem; margin-right: 0.65rem; flex-shrink: 0; }
+        .select-wrapper select {
+            flex: 1;
+            border: none;
+            background: transparent;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #2d3748;
+            outline: none;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            padding-right: 1.8rem;
+        }
+        .select-chevron {
+            position: absolute;
+            right: 0.9rem;
+            pointer-events: none;
+            color: #a0aec0;
+            font-size: 0.8rem;
+            transition: transform 0.2s, color 0.2s;
+        }
+        .select-wrapper:focus-within .select-chevron { transform: rotate(180deg); color: #667eea; }
+
+        /* ── Demo Section ── */
+        .demo-section {
+            margin-top: 1.2rem;
+            border-top: 1px solid #f0f4f8;
+            padding-top: 1rem;
+        }
+        .demo-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #4a5568;
+            margin-bottom: 0.25rem;
+        }
+        .demo-group-label {
+            font-size: 0.68rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin: 0.7rem 0 0.4rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .demo-group-label.govt { color: #667eea; }
+        .demo-group-label.verif { color: #38a169; }
+        .demo-accounts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.45rem;
+        }
+        .demo-account {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            padding: 0.6rem 0.8rem;
+            border-radius: 10px;
+            border: 1.5px solid #e2e8f0;
+            background: #fafafa;
+            cursor: pointer;
+            transition: all 0.18s ease;
+        }
+        .demo-account:hover {
+            border-color: #667eea;
+            background: rgba(102,126,234,0.05);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102,126,234,0.12);
+        }
+        .demo-account .role-badge {
+            font-size: 0.62rem;
+            padding: 2px 7px;
+            border-radius: 20px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            width: fit-content;
+        }
+        .admin-badge { background: linear-gradient(135deg,#667eea,#764ba2); color: white; }
+        .verifier-badge { background: linear-gradient(135deg,#38a169,#2f855a); color: white; }
+        .demo-account .demo-creds {
+            font-size: 0.78rem;
+            color: #4a5568;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
     </style>
 </head>
 <body class="login-body">
@@ -308,26 +456,26 @@
 
         <!-- Content -->
         <div class="left-content">
-            <div class="hero-icon">🔐</div>
-            <h1>SecureAuth</h1>
-            <p class="tagline">Blockchain-Inspired Certificate Authentication</p>
+            <div class="hero-icon">🛡️</div>
+            <h1>CertShield</h1>
+            <p class="tagline">Secure Digital Verification for Government-Issued Certificates</p>
             
             <div class="feature-list">
                 <div class="feature-item">
-                    <span class="feature-icon">⛓️</span>
-                    <span class="feature-text">SHA 256 Hashing algorithm</span>
+                    <span class="feature-icon">🏛️</span>
+                    <span class="feature-text">Government-Issued Certificate Registry</span>
                 </div>
                 <div class="feature-item">
-                    <span class="feature-icon">🛡️</span>
-                    <span class="feature-text">Immutable Certificate Records</span>
+                    <span class="feature-icon">⛓️</span>
+                    <span class="feature-text">SHA-256 Tamper-Proof Hashing</span>
                 </div>
                 <div class="feature-item">
                     <span class="feature-icon">⚡</span>
-                    <span class="feature-text">Instant Verification</span>
+                    <span class="feature-text">Instant Cross-Department Verification</span>
                 </div>
                 <div class="feature-item">
                     <span class="feature-icon">🔒</span>
-                    <span class="feature-text">End-to-End Encryption</span>
+                    <span class="feature-text">Fraud Detection & QR Authentication</span>
                 </div>
             </div>
         </div>
@@ -347,11 +495,40 @@
             <!-- Login Card -->
             <div class="login-card-modern">
                 <div class="login-header">
-                    <h2>Welcome Back</h2>
-                    <p>Please sign in to your account</p>
+                    <h2>Welcome to CertShield</h2>
+                    <p>Sign in to access the certificate verification portal</p>
                 </div>
 
                 <form id="loginForm" class="login-form-modern">
+
+                    <!-- Step 1: Role Tabs -->
+                    <div class="select-group">
+                        <span class="select-label">I am a…</span>
+                        <div class="role-tabs">
+                            <div class="role-tab" id="tab-admin" onclick="selectRole('admin')">
+                                <span class="role-tab-icon">🏛️</span>
+                                <span>Govt. Official</span>
+                            </div>
+                            <div class="role-tab" id="tab-verifier" onclick="selectRole('verifier')">
+                                <span class="role-tab-icon">🔍</span>
+                                <span>Verifier</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Department / Organisation Dropdown -->
+                    <div class="select-group" id="account-group" style="display:none;">
+                        <span class="select-label">Department / Organisation</span>
+                        <div class="select-wrapper">
+                            <span class="select-icon">🏢</span>
+                            <select id="account-select" onchange="prefillFromDropdown()">
+                                <option value="">— Select account —</option>
+                            </select>
+                            <span class="select-chevron">▼</span>
+                        </div>
+                    </div>
+
+                    <!-- Username -->
                     <div class="input-group">
                         <div class="input-wrapper">
                             <span class="input-icon">👤</span>
@@ -359,6 +536,7 @@
                         </div>
                     </div>
 
+                    <!-- Password -->
                     <div class="input-group">
                         <div class="input-wrapper">
                             <span class="input-icon">🔑</span>
@@ -378,17 +556,48 @@
                 <!-- Demo Credentials -->
                 <div class="demo-section">
                     <div class="demo-header">
-                        <span class="demo-icon">🔑</span>
-                        <span>Demo Accounts</span>
+                        <span>🔑</span>
+                        <span>Quick Demo — click any card to fill</span>
                     </div>
-                    <div class="demo-accounts">
-                        <div class="demo-account" onclick="fillCredentials('admin', 'admin123')">
-                            <span class="role-badge admin-badge">Admin</span>
-                            <span class="demo-creds">admin / admin123</span>
+                    <p style="font-size:0.73rem; color:#a0aec0; margin:0 0 0.2rem 0;">Or use the dropdowns above</p>
+
+                    <p class="demo-group-label govt">🏛️ Government Officials</p>
+                    <div class="demo-accounts" style="margin-bottom:0.6rem;">
+                        <div class="demo-account" onclick="fillCredentials('moe_official','moe123','admin')">
+                            <span class="role-badge admin-badge">Education</span>
+                            <span class="demo-creds">Ministry of Education</span>
                         </div>
-                        <div class="demo-account" onclick="fillCredentials('verifier', 'verify123')">
-                            <span class="role-badge verifier-badge">Verifier</span>
-                            <span class="demo-creds">verifier / verify123</span>
+                        <div class="demo-account" onclick="fillCredentials('moh_official','moh123','admin')">
+                            <span class="role-badge admin-badge">Health</span>
+                            <span class="demo-creds">Ministry of Health</span>
+                        </div>
+                        <div class="demo-account" onclick="fillCredentials('mol_official','mol123','admin')">
+                            <span class="role-badge admin-badge">Land</span>
+                            <span class="demo-creds">Land Records</span>
+                        </div>
+                        <div class="demo-account" onclick="fillCredentials('mot_official','mot123','admin')">
+                            <span class="role-badge admin-badge">Transport</span>
+                            <span class="demo-creds">Ministry of Transport</span>
+                        </div>
+                    </div>
+
+                    <p class="demo-group-label verif">🔍 Verifiers</p>
+                    <div class="demo-accounts">
+                        <div class="demo-account" onclick="fillCredentials('employer_hr','emp123','verifier')">
+                            <span class="role-badge verifier-badge">Employer</span>
+                            <span class="demo-creds">HR / Corporate</span>
+                        </div>
+                        <div class="demo-account" onclick="fillCredentials('bank_officer','bank123','verifier')">
+                            <span class="role-badge verifier-badge">Bank</span>
+                            <span class="demo-creds">Financial Institution</span>
+                        </div>
+                        <div class="demo-account" onclick="fillCredentials('university','uni123','verifier')">
+                            <span class="role-badge verifier-badge">University</span>
+                            <span class="demo-creds">Admissions Office</span>
+                        </div>
+                        <div class="demo-account" onclick="fillCredentials('court_official','court123','verifier')">
+                            <span class="role-badge verifier-badge">Court</span>
+                            <span class="demo-creds">Judiciary</span>
                         </div>
                     </div>
                 </div>
@@ -396,13 +605,65 @@
 
             <!-- Footer -->
             <div class="login-footer">
-                <p>&copy; 2025 SecureAuth. All rights reserved.</p>
+                <p>&copy; 2025 CertShield. Secure Digital Trust for Government Certificates.</p>
             </div>
         </div>
     </div>
 
     <script src="script.js"></script>
     <script>
+        // Account data for dropdowns
+        const accountData = {
+            admin: [
+                { label: "🎓 Ministry of Education", username: "moe_official", password: "moe123" },
+                { label: "🏥 Ministry of Health", username: "moh_official", password: "moh123" },
+                { label: "🗺️ Ministry of Land Records", username: "mol_official", password: "mol123" },
+                { label: "🚗 Ministry of Transport", username: "mot_official", password: "mot123" },
+                { label: "⚒️ Ministry of Labour", username: "molabour_official", password: "mlab123" },
+            ],
+            verifier: [
+                { label: "🏢 Corporate Employer (HR)", username: "employer_hr", password: "emp123" },
+                { label: "🏦 Bank / Financial Institution", username: "bank_officer", password: "bank123" },
+                { label: "🎓 University / College", username: "university", password: "uni123" },
+                { label: "⚖️ Judiciary / Court", username: "court_official", password: "court123" },
+                { label: "🛡️ Insurance Company", username: "insurance_agent", password: "ins123" },
+            ]
+        };
+
+        let currentRole = null;
+
+        function selectRole(role) {
+            currentRole = role;
+
+            // Update tab appearance
+            document.getElementById('tab-admin').className = 'role-tab' + (role === 'admin' ? ' active-admin' : '');
+            document.getElementById('tab-verifier').className = 'role-tab' + (role === 'verifier' ? ' active-verifier' : '');
+
+            // Populate and show department dropdown
+            const accountGroup = document.getElementById('account-group');
+            const accountSelect = document.getElementById('account-select');
+            accountSelect.innerHTML = '<option value="">— Select account —</option>';
+            (accountData[role] || []).forEach(acc => {
+                const opt = document.createElement('option');
+                opt.value = JSON.stringify(acc);
+                opt.textContent = acc.label;
+                accountSelect.appendChild(opt);
+            });
+            accountGroup.style.display = 'block';
+
+            // Clear credential fields
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+        }
+
+        function prefillFromDropdown() {
+            const val = document.getElementById('account-select').value;
+            if (!val) return;
+            const acc = JSON.parse(val);
+            document.getElementById('username').value = acc.username;
+            document.getElementById('password').value = acc.password;
+        }
+
         // Create floating particles
         function createParticles() {
             const leftSide = document.querySelector('.login-left');
@@ -433,20 +694,17 @@
         }
 
         // Fill demo credentials
-        function fillCredentials(username, password) {
+        function fillCredentials(username, password, role) {
+            if (role) selectRole(role);
             document.getElementById('username').value = username;
             document.getElementById('password').value = password;
 
-            // Add visual feedback
-            const demoAccounts = document.querySelectorAll('.demo-account');
-            demoAccounts.forEach(account => account.style.background = '#f8fafc');
+            // Visual feedback on clicked card
+            document.querySelectorAll('.demo-account').forEach(a => a.style.background = '');
+            event.target.closest('.demo-account').style.background = 'rgba(102,126,234,0.1)';
+            event.target.closest('.demo-account').style.borderColor = '#667eea';
 
-            event.target.closest('.demo-account').style.background = '#e0f2fe';
-
-            // Auto-focus login button
-            setTimeout(() => {
-                document.querySelector('.login-btn-modern').focus();
-            }, 200);
+            setTimeout(() => document.querySelector('.login-btn-modern').focus(), 200);
         }
 
         // Enhanced form submission
@@ -483,10 +741,13 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    // Store user info in localStorage
+                    // Store user info (including department/org) in localStorage
                     localStorage.setItem('user', JSON.stringify({
                         username: username,
-                        role: result.role
+                        role: result.role,
+                        department: result.department || null,
+                        organization: result.organization || null,
+                        title: result.title || null
                     }));
 
                     // Success animation
@@ -533,7 +794,7 @@
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
             createParticles();
-            document.getElementById('username').focus();
+            document.getElementById('role-type').focus();
         });
 
         // Enter key handling
@@ -546,7 +807,7 @@
             }
         });
 
-        console.log('🎨 Modern split-screen login page loaded with blockchain animations');
+        console.log('🛡️ CertShield login page loaded');
     </script>
 </body>
 </html>

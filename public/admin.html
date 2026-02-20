@@ -3,14 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel - Certificate Management</title>
+    <title>CertShield - Government Official Panel</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .nav-icon {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 28px; height: 28px; background: var(--primary, #667eea);
+            border-radius: 6px; color: white; font-size: 0.75rem; font-weight: 700;
+            flex-shrink: 0;
+        }
+        .stat-card .stat-icon {
+            display: flex; align-items: center; justify-content: center;
+            width: 48px; height: 48px; border-radius: 12px; margin: 0 auto 0.75rem;
+            font-size: 1rem; font-weight: 800; color: white;
+        }
+        .stat-icon-session { background: linear-gradient(135deg, #ed8936, #dd6b20); }
+        .stat-icon-qr      { background: linear-gradient(135deg, #9f7aea, #6b46c1); }
+        .stat-icon-today   { background: linear-gradient(135deg, #38a169, #2f855a); }
+        .stat-icon-total   { background: linear-gradient(135deg, #667eea, #764ba2); }
+
+        .dept-banner {
+            display: flex; align-items: center; gap: 1rem;
+            background: linear-gradient(135deg, rgba(102,126,234,0.08), rgba(118,75,162,0.05));
+            border: 1px solid rgba(102,126,234,0.2);
+            border-radius: 12px; padding: 1rem 1.5rem; margin-bottom: 1.5rem;
+        }
+        .dept-banner-icon {
+            width: 44px; height: 44px; background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 10px; display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; font-weight: 800; color: white; flex-shrink: 0;
+        }
+        .dept-banner-text h4 { margin: 0 0 0.2rem; color: #553c9a; font-size: 1rem; font-weight: 700; }
+        .dept-banner-text p  { margin: 0; font-size: 0.82rem; color: #718096; }
+
+        .locked-field {
+            background: #f0f4ff !important;
+            border-color: #c3d0ff !important;
+            color: #553c9a !important;
+            font-weight: 600;
+            cursor: not-allowed;
+        }
+        .locked-badge {
+            display: inline-flex; align-items: center; gap: 0.3rem;
+            font-size: 0.68rem; color: #667eea; font-weight: 600;
+            background: rgba(102,126,234,0.1); padding: 2px 8px;
+            border-radius: 10px; margin-left: 0.5rem;
+        }
+
+        /* Session table */
+        .session-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+        .session-table th {
+            background: #f7f8fc; color: #718096; font-weight: 700;
+            font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;
+            padding: 0.7rem 1rem; text-align: left; border-bottom: 2px solid #e2e8f0;
+        }
+        .session-table td {
+            padding: 0.85rem 1rem; border-bottom: 1px solid #f0f4f8;
+            color: #2d3748; vertical-align: middle;
+        }
+        .session-table tr:last-child td { border-bottom: none; }
+        .session-table tr:hover td { background: #fafbff; }
+        .cert-id-cell {
+            font-family: monospace; font-size: 0.82rem;
+            color: #667eea; font-weight: 600;
+        }
+        .hash-cell { font-family: monospace; font-size: 0.78rem; color: #a0aec0; }
+        .copy-btn {
+            background: none; border: 1px solid #e2e8f0; border-radius: 6px;
+            padding: 3px 8px; font-size: 0.7rem; color: #667eea;
+            cursor: pointer; font-weight: 600; transition: all 0.15s; margin-left: 6px;
+        }
+        .copy-btn:hover { background: #667eea; color: white; border-color: #667eea; }
+        .qr-thumb {
+            width: 38px; height: 38px; border-radius: 6px;
+            border: 1px solid #e2e8f0; object-fit: contain; cursor: pointer;
+            vertical-align: middle;
+        }
+        .qr-thumb:hover { border-color: #667eea; }
+        .session-empty {
+            text-align: center; padding: 3rem 1rem; color: #a0aec0;
+        }
+        .session-empty .empty-icon {
+            width: 60px; height: 60px; background: #f7f8fc; border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 1rem; font-size: 1.5rem; font-weight: 800; color: #cbd5e0;
+        }
+        .session-empty p { margin: 0.3rem 0; font-size: 0.9rem; }
+        .session-empty .sub { font-size: 0.8rem; color: #cbd5e0; }
+    </style>
 </head>
 <body>
     <nav class="navbar">
         <div class="container">
             <div class="nav-brand">
-                <h2>👨‍💼 Admin Control Panel</h2>
+                <h2 style="display:flex;align-items:center;gap:0.6rem;">
+                    <span class="nav-icon">CS</span>
+                    CertShield — Official Registration Panel
+                </h2>
             </div>
             <div class="nav-menu">
                 <span id="username-display"></span>
@@ -21,38 +110,54 @@
 
     <div class="container">
         <div class="admin-panel">
-            <!-- Upload Section -->
-            <div class="section">
-                <h3>📤 Upload New Certificate</h3>
-                <form id="uploadForm" class="upload-form">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
-                        <div class="form-group">
-                            <label for="certificateName">📋 Certificate Name *</label>
-                            <input type="text" id="certificateName" name="certificateName" placeholder="e.g., Computer Science Degree" required>
-                        </div>
 
+            <!-- SECTION 1: Register Certificate -->
+            <div class="section">
+                <h3>Register New Government Certificate</h3>
+
+                <div class="dept-banner">
+                    <div class="dept-banner-icon" id="dept-icon">GO</div>
+                    <div class="dept-banner-text">
+                        <h4 id="dept-banner-title">Government Department</h4>
+                        <p id="dept-banner-sub">All certificates will be issued under your department</p>
+                    </div>
+                </div>
+
+                <form id="uploadForm" class="upload-form">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
                         <div class="form-group">
-                            <label for="issuedTo">👤 Issued To *</label>
-                            <input type="text" id="issuedTo" name="issuedTo" placeholder="e.g., John Doe" required>
+                            <label for="certificateName">Certificate Name *</label>
+                            <input type="text" id="certificateName" name="certificateName"
+                                placeholder="e.g., Degree Certificate / Land Record / Licence" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="issuedTo">Issued To *</label>
+                            <input type="text" id="issuedTo" name="issuedTo"
+                                placeholder="e.g., John Doe" required>
                         </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                    <div style="margin-bottom:1.5rem;">
                         <div class="form-group">
-                            <label for="issuedBy">🏢 Issued By *</label>
-                            <input type="text" id="issuedBy" name="issuedBy" placeholder="e.g., University of Technology" required>
+                            <label for="issuedBy">
+                                Issued By
+                                <span class="locked-badge">&#128274; Locked to your department</span>
+                            </label>
+                            <input type="text" id="issuedBy" name="issuedBy"
+                                class="locked-field" readonly required>
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label for="certificate">📁 Certificate File (PDF, JPG, PNG) *</label>
+                        <label for="certificate">Certificate File (PDF, JPG, PNG) *</label>
                         <div class="file-upload">
-                            <input type="file" id="certificate" name="certificate" accept=".pdf,.jpg,.jpeg,.png" required>
+                            <input type="file" id="certificate" name="certificate"
+                                accept=".pdf,.jpg,.jpeg,.png" required>
                             <label for="certificate" class="file-upload-label">
-                                <span class="upload-icon">📁</span>
+                                <span class="upload-icon">&#128196;</span>
                                 <div>
-                                    <div style="font-weight: 600; margin-bottom: 0.5rem;">Choose Certificate File</div>
-                                    <div style="font-size: 0.9rem; color: var(--text-subtle);">
+                                    <div style="font-weight:600;margin-bottom:0.5rem;">Choose Certificate File</div>
+                                    <div style="font-size:0.9rem;color:var(--text-subtle);">
                                         <strong>Images:</strong> QR will be merged into certificate<br>
                                         <strong>PDFs:</strong> QR provided separately
                                     </div>
@@ -61,12 +166,12 @@
                         </div>
                     </div>
 
-                    <div style="display: flex; gap: 1rem; margin-top: 2rem;">
-                        <button type="submit" class="btn btn-primary" style="flex: 1;">
-                            🚀 Upload & Merge QR Code
+                    <div style="display:flex;gap:1rem;margin-top:2rem;">
+                        <button type="submit" class="btn btn-primary" style="flex:1;" id="submitBtn">
+                            Upload &amp; Register Certificate
                         </button>
-                        <button type="reset" class="btn btn-secondary" onclick="resetForm()">
-                            🗑️ Clear Form
+                        <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                            Clear Form
                         </button>
                     </div>
                 </form>
@@ -74,282 +179,280 @@
                 <div id="upload-result" class="result-message"></div>
             </div>
 
-            <!-- Quick Stats -->
+            <!-- SECTION 2: Session Stats -->
             <div class="section">
-                <h3>📊 Quick Statistics</h3>
-                <div id="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+                <h3>Session Overview</h3>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1.5rem;">
                     <div class="stat-card">
-                        <div class="stat-icon">📋</div>
-                        <div class="stat-number" id="total-certs">0</div>
-                        <div class="stat-label">Total Certificates</div>
+                        <div class="stat-icon stat-icon-session">S</div>
+                        <div class="stat-number" id="stat-session">0</div>
+                        <div class="stat-label">Registered This Session</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon">✅</div>
-                        <div class="stat-number" id="verified-certs">0</div>
-                        <div class="stat-label">Verified</div>
+                        <div class="stat-icon stat-icon-qr">QR</div>
+                        <div class="stat-number" id="stat-qr">0</div>
+                        <div class="stat-label">QR Codes Generated</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon">🔗</div>
-                        <div class="stat-number" id="merged-certs">0</div>
-                        <div class="stat-label">QR Merged</div>
+                        <div class="stat-icon stat-icon-today">&#10003;</div>
+                        <div class="stat-number" id="stat-verified">0</div>
+                        <div class="stat-label">Verified &amp; Active</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon">📈</div>
-                        <div class="stat-number" id="today-uploads">0</div>
-                        <div class="stat-label">Today's Uploads</div>
+                        <div class="stat-icon stat-icon-total">&#8679;</div>
+                        <div class="stat-number" id="stat-merged">0</div>
+                        <div class="stat-label">QR Merged into File</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Certificates Management -->
+            <!-- SECTION 3: This Session's Registrations -->
             <div class="section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-                    <h3>📋 Certificate Management</h3>
-                    <div style="display: flex; gap: 1rem;">
-                        <button onclick="loadCertificates()" class="btn btn-secondary">🔄 Refresh</button>
-                        <button onclick="deleteSelectedCertificates()" class="btn btn-danger" id="delete-selected-btn" style="display: none;">
-                            🗑️ Delete Selected
-                        </button>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
+                    <div>
+                        <h3 style="margin-bottom:0.25rem;">Registered This Session</h3>
+                        <p style="margin:0;font-size:0.83rem;color:var(--text-muted);">
+                            Certificates you registered since logging in
+                        </p>
                     </div>
+                    <button onclick="clearSessionHistory()" class="btn btn-secondary"
+                        style="font-size:0.82rem;">Clear History</button>
                 </div>
-
-                <!-- Search and Filter -->
-                <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 1rem; margin-bottom: 2rem;">
-                    <div class="form-group" style="margin: 0;">
-                        <input type="text" id="search-input" placeholder="🔍 Search certificates..." oninput="filterCertificates()">
-                    </div>
-                    <div class="form-group" style="margin: 0;">
-                        <select id="status-filter" onchange="filterCertificates()">
-                            <option value="">All Status</option>
-                            <option value="verified">✅ Verified</option>
-                            <option value="pending">⏳ Pending</option>
-                            <option value="revoked">❌ Revoked</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="margin: 0;">
-                        <button onclick="selectAllCertificates()" class="btn btn-outline" id="select-all-btn">
-                            ☑️ Select All
-                        </button>
-                    </div>
-                </div>
-
-                <div id="certificates-list" class="certificates-grid"></div>
+                <div id="session-history"></div>
             </div>
+
         </div>
     </div>
 
-    <style>
-        .certificate-card {
-            position: relative;
-        }
-
-        .certificate-checkbox {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            width: 16px;
-            height: 16px;
-            cursor: pointer;
-        }
-
-        .certificate-card.selected {
-            border-color: var(--primary);
-            background: var(--bg-secondary);
-        }
-
-        .download-buttons {
-            display: flex;
-            gap: 0.5rem;
-            margin-top: 1rem;
-            flex-wrap: wrap;
-        }
-
-        .download-buttons .btn {
-            font-size: 11px;
-            padding: 6px 10px;
-        }
-
-        .qr-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-
-        .qr-status.merged {
-            color: var(--success);
-        }
-
-        .qr-status.separate {
-            color: var(--warning);
-        }
-    </style>
-
     <script src="script.js"></script>
     <script>
-        // Check if user is admin
+        // Auth check
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         if (!user.username || user.role !== 'admin') {
             window.location.href = 'index.html';
         }
 
-        document.getElementById('username-display').textContent = `Welcome, ${user.username}`;
+        const userDept     = user.department || 'Government Department';
+        const userTitle    = user.title      || 'Official';
+        const userUsername = user.username   || '';
 
-        let allCertificates = [];
-        let selectedCertificates = new Set();
+        // Nav
+        document.getElementById('username-display').innerHTML =
+            `<span style="font-size:0.85rem;color:var(--text-muted);">
+                <strong>${userTitle}</strong> &mdash; ${userDept}
+             </span>`;
 
-        // File input change handler
+        // Dept banner
+        const initials = userDept.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+        document.getElementById('dept-icon').textContent         = initials;
+        document.getElementById('dept-banner-title').textContent = userDept;
+        document.getElementById('dept-banner-sub').textContent   =
+            `Logged in as ${userTitle} — certificates will be issued under ${userDept}`;
+
+        // Lock Issued By
+        document.getElementById('issuedBy').value = userDept;
+
+        // In-memory session list (never fetched from server)
+        let sessionCerts = [];
+
+        function updateStats() {
+            document.getElementById('stat-session').textContent  = sessionCerts.length;
+            document.getElementById('stat-qr').textContent       = sessionCerts.filter(c => c.qrCode).length;
+            document.getElementById('stat-verified').textContent = sessionCerts.filter(c => c.status === 'verified').length;
+            document.getElementById('stat-merged').textContent   = sessionCerts.filter(c => c.merged).length;
+        }
+
+        function renderSessionHistory() {
+            const container = document.getElementById('session-history');
+            if (sessionCerts.length === 0) {
+                container.innerHTML = `
+                    <div class="session-empty">
+                        <div class="empty-icon">&#128196;</div>
+                        <p>No certificates registered yet this session</p>
+                        <p class="sub">Use the form above to get started</p>
+                    </div>`;
+                return;
+            }
+
+            const rows = sessionCerts.map(c => `
+                <tr>
+                    <td style="font-weight:600;">${c.name}</td>
+                    <td>${c.issuedTo}</td>
+                    <td>
+                        <span class="cert-id-cell">${c.id}</span>
+                        <button class="copy-btn" onclick="copyToClipboard('${c.id}')">Copy</button>
+                    </td>
+                    <td>
+                        ${c.qrCode
+                            ? `<img src="${c.qrCode}" class="qr-thumb"
+                                title="Click to download"
+                                onclick="downloadFile('${c.qrCode}','qr-${c.id}.png')">`
+                            : '—'}
+                        ${c.merged
+                            ? `<a href="/api/download/${c.id}" class="copy-btn"
+                                style="text-decoration:none;margin-left:6px;">Download</a>`
+                            : ''}
+                    </td>
+                    <td><span class="hash-cell">${c.hash ? c.hash.substring(0,16)+'…' : '—'}</span></td>
+                    <td>
+                        <span style="display:inline-flex;align-items:center;gap:4px;font-size:0.78rem;
+                            font-weight:700;color:#38a169;background:rgba(56,161,105,0.1);
+                            padding:3px 10px;border-radius:20px;">&#10003; Verified</span>
+                    </td>
+                    <td style="font-size:0.82rem;color:#718096;">${c.time}</td>
+                </tr>`).join('');
+
+            container.innerHTML = `
+                <div style="overflow-x:auto;border-radius:10px;border:1px solid #e2e8f0;">
+                    <table class="session-table">
+                        <thead>
+                            <tr>
+                                <th>Certificate Name</th>
+                                <th>Issued To</th>
+                                <th>Certificate ID</th>
+                                <th>QR / Download</th>
+                                <th>SHA-256 Hash</th>
+                                <th>Status</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>`;
+        }
+
+        function downloadFile(url, filename) {
+            const a = document.createElement('a');
+            a.href = url; a.download = filename; a.click();
+        }
+
+        function clearSessionHistory() {
+            if (!sessionCerts.length) return;
+            if (!confirm('Clear session history? Certificates remain registered on the server.')) return;
+            sessionCerts = [];
+            updateStats();
+            renderSessionHistory();
+        }
+
+        // File input label update
         document.getElementById('certificate').addEventListener('change', function() {
             const label = this.nextElementSibling.querySelector('div > div');
             if (this.files[0]) {
-                const file = this.files[0];
-                const size = formatFileSize(file.size);
-                const fileType = file.type;
-                const isImage = fileType.includes('image');
-
+                const isImage = this.files[0].type.includes('image');
                 label.innerHTML = `
-                    <div style="font-weight: 600; margin-bottom: 0.5rem;">${file.name}</div>
-                    <div style="font-size: 0.9rem; color: var(--text-subtle);">
-                        Size: ${size} | ${isImage ? '🔗 QR will be merged' : '📄 QR separate'}
-                    </div>
-                `;
+                    <div style="font-weight:600;margin-bottom:0.5rem;">${this.files[0].name}</div>
+                    <div style="font-size:0.9rem;color:var(--text-subtle);">
+                        ${formatFileSize(this.files[0].size)} | ${isImage ? 'QR will be merged' : 'QR provided separately'}
+                    </div>`;
             } else {
-                label.innerHTML = `
-                    <div style="font-weight: 600; margin-bottom: 0.5rem;">Choose Certificate File</div>
-                    <div style="font-size: 0.9rem; color: var(--text-subtle);">
-                        <strong>Images:</strong> QR will be merged into certificate<br>
-                        <strong>PDFs:</strong> QR provided separately
-                    </div>
-                `;
+                resetFileLabel();
             }
         });
 
-        // Upload form handler
+        function resetFileLabel() {
+            const label = document.querySelector('.file-upload-label div > div');
+            if (label) label.innerHTML = `
+                <div style="font-weight:600;margin-bottom:0.5rem;">Choose Certificate File</div>
+                <div style="font-size:0.9rem;color:var(--text-subtle);">
+                    <strong>Images:</strong> QR will be merged into certificate<br>
+                    <strong>PDFs:</strong> QR provided separately
+                </div>`;
+        }
+
+        // Upload handler
         document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-
-            const formData = new FormData();
             const fileInput = document.getElementById('certificate');
             const file = fileInput.files[0];
 
-            if (!file) {
-                showNotification('Please select a certificate file', 'warning');
-                return;
-            }
+            if (!file)                   { showNotification('Please select a file', 'warning'); return; }
+            if (!validateFileType(file)) { showNotification('Invalid file type. Use PDF, JPG or PNG', 'warning'); return; }
+            if (!validateFileSize(file)) { showNotification('File too large (max 10MB)', 'warning'); return; }
 
-            if (!validateFileType(file)) {
-                showNotification('Invalid file type. Please select PDF, JPG, or PNG', 'warning');
-                return;
-            }
+            const certName = document.getElementById('certificateName').value;
+            const issuedTo = document.getElementById('issuedTo').value;
 
-            if (!validateFileSize(file)) {
-                showNotification('File too large. Maximum size is 10MB', 'warning');
-                return;
-            }
-
-            formData.append('certificate', file);
-            formData.append('certificateName', document.getElementById('certificateName').value);
-            formData.append('issuedTo', document.getElementById('issuedTo').value);
-            formData.append('issuedBy', document.getElementById('issuedBy').value);
+            const formData = new FormData();
+            formData.append('certificate',     file);
+            formData.append('certificateName', certName);
+            formData.append('issuedTo',        issuedTo);
+            formData.append('issuedBy',        userDept);
+            formData.append('department',      userDept);
+            formData.append('uploadedBy',      userUsername);
 
             const resultDiv = document.getElementById('upload-result');
-            const submitBtn = e.target.querySelector('button[type="submit"]');
-
-            // Show loading state
-            submitBtn.innerHTML = '🔄 Processing...';
-            submitBtn.disabled = true;
-            showLoading(resultDiv, 'Uploading certificate and merging QR code...');
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.textContent = 'Processing…';
+            submitBtn.disabled    = true;
+            showLoading(resultDiv, 'Uploading and generating QR code…');
 
             try {
-                const response = await fetch('/api/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const result = await response.json();
+                const response = await fetch('/api/upload', { method: 'POST', body: formData });
+                const result   = await response.json();
 
                 if (result.success) {
-                    const isImageFile = file.type.includes('image');
-                    const mergeStatus = result.certificate.mergeMethod;
+                    const cert = result.certificate;
+
+                    // Track in session memory only
+                    sessionCerts.unshift({
+                        name:     certName,
+                        issuedTo: issuedTo,
+                        id:       cert.id,
+                        qrCode:   cert.qrCode,
+                        merged:   !!cert.merged,
+                        hash:     cert.hash,
+                        status:   'verified',
+                        time:     new Date().toLocaleTimeString()
+                    });
+
+                    updateStats();
+                    renderSessionHistory();
 
                     resultDiv.innerHTML = `
                         <div class="success">
-                            <h4>✅ Certificate Processed Successfully!</h4>
-                            <div style="display: grid; grid-template-columns: 1fr auto; gap: 2rem; margin-top: 1.5rem;">
+                            <h4>Certificate Registered Successfully!</h4>
+                            <div style="display:grid;grid-template-columns:1fr auto;gap:2rem;margin-top:1.2rem;align-items:start;">
                                 <div>
-                                    <p><strong>Certificate ID:</strong> ${result.certificate.id}</p>
-                                    <p><strong>QR Status:</strong> 
-                                        ${mergeStatus === 'merged' ? 
-                                            '<span class="qr-status merged">🔗 Merged with certificate</span>' : 
-                                            '<span class="qr-status separate">📄 Provided separately</span>'
-                                        }
+                                    <p><strong>Certificate ID:</strong>
+                                        <span style="font-family:monospace;color:#667eea;font-weight:600;">${cert.id}</span>
+                                        <button class="copy-btn" onclick="copyToClipboard('${cert.id}')">Copy</button>
                                     </p>
-                                    <p><strong>File Hash:</strong> <code style="font-size: 0.9rem;">${result.certificate.hash.substring(0, 16)}...</code></p>
-                                    <div style="margin-top: 1rem;">
-                                        <button onclick="copyToClipboard('${result.certificate.id}')" class="btn btn-outline" style="margin-right: 0.5rem;">
-                                            📋 Copy ID
-                                        </button>
-                                        ${result.certificate.merged ? `
-                                            <a href="/api/download/${result.certificate.id}" class="btn btn-success" style="margin-right: 0.5rem;">
-                                                📥 Download Merged
-                                            </a>
-                                        ` : ''}
-                                        <a href="${result.certificate.qrCode}" download="qr-${result.certificate.id}.png" class="btn btn-secondary">
-                                            📱 Download QR
-                                        </a>
+                                    <p><strong>Department:</strong> ${userDept}</p>
+                                    <p><strong>SHA-256:</strong>
+                                        <code style="font-size:0.85rem;">${cert.hash.substring(0,24)}…</code>
+                                    </p>
+                                    <p><strong>QR Status:</strong>
+                                        ${cert.mergeMethod === 'merged'
+                                            ? '<span style="color:#38a169;font-weight:600;">Merged into certificate</span>'
+                                            : '<span style="color:#ed8936;font-weight:600;">Provided separately</span>'}
+                                    </p>
+                                    <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+                                        <button onclick="copyToClipboard('${cert.id}')" class="btn btn-outline" style="font-size:12px;">Copy ID</button>
+                                        ${cert.merged ? `<a href="/api/download/${cert.id}" class="btn btn-success" style="font-size:12px;">Download Certificate</a>` : ''}
+                                        <a href="${cert.qrCode}" download="qr-${cert.id}.png" class="btn btn-secondary" style="font-size:12px;">Download QR</a>
                                     </div>
                                 </div>
-                                <div class="qr-display" style="margin: 0;">
-                                    <p><strong>Generated QR Code:</strong></p>
-                                    <img src="${result.certificate.qrCode}" alt="QR Code" class="qr-image" style="max-width: 120px;">
-                                    <p style="font-size: 0.8rem; margin-top: 0.5rem; color: var(--text-subtle);">
-                                        ${mergeStatus === 'merged' ? '🔗 Merged into certificate' : '📄 Separate file'}
-                                    </p>
+                                <div style="text-align:center;">
+                                    <p style="font-size:0.8rem;font-weight:600;color:#4a5568;margin-bottom:0.5rem;">QR Code</p>
+                                    <img src="${cert.qrCode}" alt="QR" style="width:100px;border-radius:8px;border:1px solid #e2e8f0;">
                                 </div>
                             </div>
+                        </div>`;
 
-                            ${mergeStatus === 'merged' ? `
-                                <div style="margin-top: 2rem; padding: 1rem; background: rgba(34, 197, 94, 0.1); border-radius: 8px; border: 1px solid rgba(34, 197, 94, 0.2);">
-                                    <p style="color: var(--success); margin: 0; font-weight: 500;">
-                                        🎉 QR code successfully merged into certificate at bottom-right corner!
-                                    </p>
-                                </div>
-                            ` : `
-                                <div style="margin-top: 2rem; padding: 1rem; background: rgba(217, 119, 6, 0.1); border-radius: 8px; border: 1px solid rgba(217, 119, 6, 0.2);">
-                                    <p style="color: var(--warning); margin: 0; font-weight: 500;">
-                                        📄 PDF certificate: QR code provided as separate file for printing/embedding.
-                                    </p>
-                                </div>
-                            `}
-                        </div>
-                    `;
-
-                    // Reset form
                     document.getElementById('uploadForm').reset();
-                    resetFileInput();
-
-                    // Reload certificates and stats
-                    loadCertificates();
-                    updateStats();
-
-                    showNotification(
-                        mergeStatus === 'merged' ? 
-                        'Certificate uploaded and QR merged successfully!' : 
-                        'Certificate uploaded with separate QR code!', 
-                        'success'
-                    );
+                    document.getElementById('issuedBy').value = userDept;
+                    resetFileLabel();
+                    showNotification('Certificate registered successfully!', 'success');
 
                 } else {
                     showError(resultDiv, result.error || 'Upload failed');
                     if (result.originalCertificate) {
                         resultDiv.innerHTML += `
-                            <div style="margin-top: 1rem; padding: 1rem; background: rgba(239, 68, 68, 0.1); border-radius: 8px;">
-                                <p><strong>Duplicate detected:</strong></p>
-                                <p>Original: ${result.originalCertificate.name} (${result.originalCertificate.id})</p>
-                                <p>Uploaded: ${new Date(result.originalCertificate.uploadDate).toLocaleDateString()}</p>
-                            </div>
-                        `;
+                            <div style="margin-top:1rem;padding:1rem;background:rgba(239,68,68,0.08);border-radius:8px;">
+                                <p><strong>Duplicate detected:</strong>
+                                    ${result.originalCertificate.name} (${result.originalCertificate.id})
+                                </p>
+                            </div>`;
                     }
                     showNotification('Upload failed', 'error');
                 }
@@ -357,276 +460,21 @@
                 showError(resultDiv, 'Upload failed: ' + error.message);
                 showNotification('Upload failed', 'error');
             } finally {
-                // Reset button
-                submitBtn.innerHTML = '🚀 Upload & Merge QR Code';
-                submitBtn.disabled = false;
+                submitBtn.textContent = 'Upload & Register Certificate';
+                submitBtn.disabled    = false;
             }
         });
 
-        // Load certificates function
-        async function loadCertificates() {
-            const listDiv = document.getElementById('certificates-list');
-            showLoading(listDiv, 'Loading certificates...');
-
-            try {
-                const response = await fetch('/api/certificates');
-                const certificates = await response.json();
-                allCertificates = certificates;
-
-                if (certificates.length === 0) {
-                    listDiv.innerHTML = `
-                        <div class="placeholder">
-                            <div style="font-size: 3rem; margin-bottom: 1rem;">📋</div>
-                            <p>No certificates uploaded yet</p>
-                            <p style="font-size: 0.9rem; margin-top: 1rem; opacity: 0.7;">
-                                Upload your first certificate to get started
-                            </p>
-                        </div>
-                    `;
-                    return;
-                }
-
-                displayCertificates(certificates);
-
-            } catch (error) {
-                showError(listDiv, 'Failed to load certificates');
-            }
-        }
-
-        // Display certificates with QR merge status
-        function displayCertificates(certificates) {
-            const listDiv = document.getElementById('certificates-list');
-
-            listDiv.innerHTML = certificates.map(cert => `
-                <div class="certificate-card ${selectedCertificates.has(cert.id) ? 'selected' : ''}" data-cert-id="${cert.id}">
-                    <input type="checkbox" class="certificate-checkbox" 
-                           ${selectedCertificates.has(cert.id) ? 'checked' : ''} 
-                           onchange="toggleCertificateSelection('${cert.id}')">
-
-                    <h4>${cert.name}</h4>
-                    <p><strong>ID:</strong> <span>${cert.id}</span></p>
-                    <p><strong>Issued To:</strong> <span>${cert.issuedTo || 'N/A'}</span></p>
-                    <p><strong>Issued By:</strong> <span>${cert.issuedBy || 'N/A'}</span></p>
-                    <p><strong>Upload Date:</strong> <span>${new Date(cert.uploadDate).toLocaleDateString()}</span></p>
-                    <p><strong>Status:</strong> <span class="status-${cert.status}">${cert.status}</span></p>
-                    <p><strong>QR Status:</strong> 
-                        ${cert.hasMerged ? 
-                            '<span class="qr-status merged">🔗 Merged</span>' : 
-                            cert.hasQR ? '<span class="qr-status separate">📱 Separate</span>' : '❌ None'
-                        }
-                    </p>
-
-                    <div style="margin-top: 1.5rem;">
-                        <!-- Action buttons -->
-                        <div class="download-buttons">
-                            <button onclick="copyToClipboard('${cert.id}')" class="btn btn-outline">
-                                📋 Copy ID
-                            </button>
-                            <button onclick="viewCertificate('${cert.id}')" class="btn btn-secondary">
-                                👁️ View
-                            </button>
-                            ${cert.hasMerged ? `
-                                <a href="/api/download/${cert.id}" class="btn btn-success">
-                                    📥 Merged
-                                </a>
-                            ` : ''}
-                            ${cert.hasQR ? `
-                                <a href="/uploads/qr-${cert.id}.png" download="qr-${cert.id}.png" class="btn btn-primary">
-                                    📱 QR Only
-                                </a>
-                            ` : ''}
-                            <button onclick="deleteCertificate('${cert.id}')" class="btn btn-danger">
-                                🗑️ Delete
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-
-            updateSelectionUI();
-        }
-
-        // Certificate selection functions
-        function toggleCertificateSelection(certId) {
-            if (selectedCertificates.has(certId)) {
-                selectedCertificates.delete(certId);
-            } else {
-                selectedCertificates.add(certId);
-            }
-            updateSelectionUI();
-        }
-
-        function selectAllCertificates() {
-            const isAllSelected = selectedCertificates.size === allCertificates.length;
-
-            if (isAllSelected) {
-                selectedCertificates.clear();
-            } else {
-                allCertificates.forEach(cert => selectedCertificates.add(cert.id));
-            }
-
-            displayCertificates(allCertificates);
-        }
-
-        function updateSelectionUI() {
-            const deleteBtn = document.getElementById('delete-selected-btn');
-            const selectAllBtn = document.getElementById('select-all-btn');
-
-            if (selectedCertificates.size > 0) {
-                deleteBtn.style.display = 'inline-flex';
-                deleteBtn.textContent = `🗑️ Delete Selected (${selectedCertificates.size})`;
-            } else {
-                deleteBtn.style.display = 'none';
-            }
-
-            selectAllBtn.textContent = selectedCertificates.size === allCertificates.length ? 
-                '☑️ Deselect All' : '☑️ Select All';
-        }
-
-        // Delete functions
-        async function deleteCertificate(certId) {
-            const cert = allCertificates.find(c => c.id === certId);
-            if (!cert) return;
-
-            if (!confirm(`Are you sure you want to delete certificate:\n\n"${cert.name}" (${cert.id})?\n\nThis will delete:\n- Original certificate\n- QR code\n- Merged certificate (if exists)\n\nThis action cannot be undone.`)) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`/api/certificates/${certId}`, {
-                    method: 'DELETE'
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    showNotification(`Certificate "${cert.name}" deleted successfully`, 'success');
-                    selectedCertificates.delete(certId);
-                    loadCertificates();
-                    updateStats();
-                } else {
-                    showNotification('Failed to delete certificate: ' + result.error, 'error');
-                }
-            } catch (error) {
-                showNotification('Delete failed: ' + error.message, 'error');
-            }
-        }
-
-        async function deleteSelectedCertificates() {
-            if (selectedCertificates.size === 0) return;
-
-            const selectedNames = Array.from(selectedCertificates).map(id => {
-                const cert = allCertificates.find(c => c.id === id);
-                return cert ? `"${cert.name}" (${cert.id})` : id;
-            }).join('\n');
-
-            if (!confirm(`Are you sure you want to delete ${selectedCertificates.size} certificates?\n\n${selectedNames}\n\nThis will delete all associated files.\n\nThis action cannot be undone.`)) {
-                return;
-            }
-
-            let successCount = 0;
-            let failCount = 0;
-
-            for (const certId of selectedCertificates) {
-                try {
-                    const response = await fetch(`/api/certificates/${certId}`, {
-                        method: 'DELETE'
-                    });
-
-                    const result = await response.json();
-                    if (result.success) {
-                        successCount++;
-                    } else {
-                        failCount++;
-                    }
-                } catch (error) {
-                    failCount++;
-                }
-            }
-
-            selectedCertificates.clear();
-            loadCertificates();
-            updateStats();
-
-            if (successCount > 0) {
-                showNotification(`Successfully deleted ${successCount} certificate(s)`, 'success');
-            }
-            if (failCount > 0) {
-                showNotification(`Failed to delete ${failCount} certificate(s)`, 'error');
-            }
-        }
-
-        // Filter certificates
-        function filterCertificates() {
-            const searchTerm = document.getElementById('search-input').value.toLowerCase();
-            const statusFilter = document.getElementById('status-filter').value;
-
-            let filtered = allCertificates.filter(cert => {
-                const matchesSearch = cert.name.toLowerCase().includes(searchTerm) ||
-                                    cert.id.toLowerCase().includes(searchTerm) ||
-                                    (cert.issuedTo && cert.issuedTo.toLowerCase().includes(searchTerm)) ||
-                                    (cert.issuedBy && cert.issuedBy.toLowerCase().includes(searchTerm));
-
-                const matchesStatus = !statusFilter || cert.status === statusFilter;
-
-                return matchesSearch && matchesStatus;
-            });
-
-            displayCertificates(filtered);
-        }
-
-        // Update statistics
-        async function updateStats() {
-            try {
-                const response = await fetch('/api/certificates');
-                const certificates = await response.json();
-
-                const total = certificates.length;
-                const verified = certificates.filter(c => c.status === 'verified').length;
-                const merged = certificates.filter(c => c.hasMerged).length;
-                const today = new Date().toDateString();
-                const todayUploads = certificates.filter(c => 
-                    new Date(c.uploadDate).toDateString() === today
-                ).length;
-
-                document.getElementById('total-certs').textContent = total;
-                document.getElementById('verified-certs').textContent = verified;
-                document.getElementById('merged-certs').textContent = merged;
-                document.getElementById('today-uploads').textContent = todayUploads;
-
-            } catch (error) {
-                console.error('Failed to update stats:', error);
-            }
-        }
-
-        // Utility functions
         function resetForm() {
             document.getElementById('uploadForm').reset();
-            resetFileInput();
+            document.getElementById('issuedBy').value = userDept;
             document.getElementById('upload-result').innerHTML = '';
+            resetFileLabel();
         }
 
-        function resetFileInput() {
-            const label = document.querySelector('.file-upload-label div > div');
-            label.innerHTML = `
-                <div style="font-weight: 600; margin-bottom: 0.5rem;">Choose Certificate File</div>
-                <div style="font-size: 0.9rem; color: var(--text-subtle);">
-                    <strong>Images:</strong> QR will be merged into certificate<br>
-                    <strong>PDFs:</strong> QR provided separately
-                </div>
-            `;
-        }
-
-        function viewCertificate(id) {
-            window.open(`/verify/${id}`, '_blank');
-        }
-
-        // Load certificates and stats on page load
-        loadCertificates();
+        // Init
         updateStats();
-
-        // Auto-refresh stats every 30 seconds
-        setInterval(updateStats, 30000);
+        renderSessionHistory();
     </script>
 </body>
 </html>
